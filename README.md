@@ -1,10 +1,5 @@
-# helloworld
+# safebooru
 
-AstrBot 插件模板
+可以从safebooru上下载图片，并将其上传至群聊，好看的图图。使用了tag中英映射，使用中文即可使用
 
-A template plugin for AstrBot plugin feature
-
-# 支持
-
-[帮助文档](https://astrbot.soulter.top/center/docs/%E5%BC%80%E5%8F%91/%E6%8F%92%E4%BB%B6%E5%BC%80%E5%8F%91/
-)
+safebooru + tag = 好看的图
