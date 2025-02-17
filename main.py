@@ -7,7 +7,7 @@ import openpyxl
 
 from astrbot.api.all import *
 
-@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.0.0", "https://safebooru.org/index.php?page=post&s=view&id=4742845")
+@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.0.0", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
 class SafebooruPlugin(Star):
     def __init__(self, context: Context, config: dict):
         """
