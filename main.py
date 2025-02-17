@@ -19,23 +19,27 @@ class SafebooruPlugin(Star):
         self.usage_file = "usage_count.json"
         self.usage_counts = self.load_usage_counts()
 
-
-    def load_tag_mapping(self, filepath: str) -> dict:
+    def load_tag_mapping(self, filename: str) -> dict:
         """
         从 xlsx 文件中加载标签映射
         期望第一列为真实 tag，第二列为中文描述（right_tag_cn）。
         返回一个字典，键为中文标签，值为真实 tag。
         """
         mapping = {}
+        # 使用当前文件所在的目录作为基准路径
+        base_dir = os.path.dirname(os.path.realpath(__file__))
+        filepath = os.path.join(base_dir, filename)
         if os.path.exists(filepath):
             wb = openpyxl.load_workbook(filepath)
             sheet = wb.active
             for row in sheet.iter_rows(values_only=True):
-                # 忽略空行，确保两列都有值
                 if row[0] and row[1]:
                     mapping[str(row[1])] = str(row[0])
             wb.close()
+        else:
+            print(f"文件 {filepath} 不存在。")
         return mapping
+
 
     def load_usage_counts(self) -> dict:
         """
