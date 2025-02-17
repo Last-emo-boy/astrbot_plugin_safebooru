@@ -9,17 +9,16 @@ from astrbot.api.all import *
 
 @register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.0.0", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
 class SafebooruPlugin(Star):
-    def __init__(self, context: Context, config: dict):
-        """
-        初始化插件时加载配置、标签映射以及使用记录。
-        配置中可以指定 API 返回的图片数量上限（limit），默认值可以在配置文件中设置。
-        """
+    def __init__(self, context: Context, config: dict = None):
+        if config is None:
+            config = {}
         super().__init__(context)
         self.config = config
-        self.limit = self.config.get("limit", 100)  # 默认 limit 值为 100，可在 _conf_schema.json 中配置
+        self.limit = self.config.get("limit", 100)  # 默认 limit 值为 100
         self.tag_mapping = self.load_tag_mapping("tag_mapping.xlsx")
         self.usage_file = "usage_count.json"
         self.usage_counts = self.load_usage_counts()
+
 
     def load_tag_mapping(self, filepath: str) -> dict:
         """
