@@ -8,7 +8,7 @@ import re
 
 from astrbot.api.all import *
 
-@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.1.1", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
+@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.1.2", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
 class SafebooruPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         if config is None:
