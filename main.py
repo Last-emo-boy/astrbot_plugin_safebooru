@@ -8,7 +8,7 @@ import re
 
 from astrbot.api.all import *
 
-@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.1.2", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
+@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.1.3", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
 class SafebooruPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         if config is None:
@@ -133,11 +133,10 @@ class SafebooruPlugin(Star):
     async def safebooru_random(self, event: AstrMessageEvent):
         """
         获取随机图片：
-        1. 访问 https://safebooru.org/index.php?page=post&s=random，
-        允许重定向获取最终页面内容；
-        2. 使用 XPath（/html/body/div[5]/div/div[2]/div[1]/div[2]/div[1]/img）解析页面，
-        提取目标 img 元素的 src 属性；
-        3. 并发送该图片。
+        1. 访问 https://safebooru.org/index.php?page=post&s=random，允许重定向获取最终页面内容；
+        2. 使用 XPath (/html/body/div[5]/div/div[2]/div[1]/div[2]/div[1]/img) 解析页面，
+           提取目标 img 元素的 src 和 alt 属性；
+        3. 无论如何，都要输出图片；如果配置中 display_tags 为 True，则额外发送标签信息（alt 字段）。
         """
         random_url = "https://safebooru.org/index.php?page=post&s=random"
         try:
@@ -152,13 +151,18 @@ class SafebooruPlugin(Star):
             return
 
         try:
-            import lxml.html
             doc = lxml.html.fromstring(html)
             elements = doc.xpath('/html/body/div[5]/div/div[2]/div[1]/div[2]/div[1]/img')
             if elements:
-                image_url = elements[0].get("src")
-                yield event.image_result(image_url)
+                img_elem = elements[0]
+                src = img_elem.get("src")
+                alt = img_elem.get("alt", "未知标签")
+                # 如果启用了 display_tags，额外发送标签信息
+                if self.display_tags:
+                    yield event.plain_result("Tags: " + alt)
+                # 无论如何，都输出图片
+                yield event.image_result(src)
             else:
-                yield event.plain_result("未能在页面中找到随机图片（通过XPath）。")
+                yield event.plain_result("未能通过XPath找到随机图片。")
         except Exception as e:
             yield event.plain_result(f"解析随机图片时出错: {e}")
