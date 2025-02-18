@@ -5,6 +5,7 @@ import tempfile
 import aiohttp
 import openpyxl
 import re
+import lxml.html
 
 from astrbot.api.all import *
 
@@ -59,12 +60,11 @@ class SafebooruPlugin(Star):
     async def fetch_image(self, event: AstrMessageEvent, tag: str):
         """
         根据用户输入的标签（支持中文和英文）从 safebooru 获取图片。
-        1. 首先尝试在映射中进行模糊匹配，如果匹配到则使用映射后的真实 tag，
-           否则直接使用用户输入的 tag。
-        2. 如果配置中 display_tags 为 True，则先发送返回JSON中的 "tags" 字段信息。
+        1. 尝试在映射中进行模糊匹配，如果匹配到则使用映射后的真实 tag，否则直接使用用户输入的 tag；
+        2. 如果配置中 display_tags 为 True，则先发送返回JSON中的 "tags" 字段信息；
         3. 如果 API 返回的图片列表为空，则报错提示。
         """
-        # 如果映射存在，则尝试匹配；如果没有匹配项，直接使用用户输入的tag
+        # 如果映射存在，则尝试匹配；如果没有匹配项，直接使用用户输入的 tag
         candidates = list(self.tag_mapping.keys())
         matches = difflib.get_close_matches(tag, candidates, n=1, cutoff=0.1)
         if matches:
@@ -99,7 +99,7 @@ class SafebooruPlugin(Star):
             yield event.plain_result("未获取到图片链接。")
             return
 
-        # 当 display_tags 为True时，先发送图片的tags字段内容
+        # 当 display_tags 为 True 时，先发送图片的 tags 字段内容
         if self.display_tags:
             tags_field = post.get("tags", "")
             yield event.plain_result("Tags: " + tags_field)
