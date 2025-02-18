@@ -8,7 +8,7 @@ import re
 
 from astrbot.api.all import *
 
-@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.1.0", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
+@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.1.1", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
 class SafebooruPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         if config is None:
@@ -133,21 +133,27 @@ class SafebooruPlugin(Star):
     async def safebooru_random(self, event: AstrMessageEvent):
         """
         获取随机图片：
-        访问 https://safebooru.org/index.php?page=post&s=random，
-        解析返回页面中 id 为 "image" 的 img 元素的 src 属性，并发送该图片。
+        1. 访问 https://safebooru.org/index.php?page=post&s=random，
+           设置 allow_redirects=True 以允许重定向到新的网址；
+        2. 获取重定向后的最终页面内容；
+        3. 解析页面中 id 为 "image" 的 img 标签的 src 属性；
+        4. 并发送该图片。
         """
         random_url = "https://safebooru.org/index.php?page=post&s=random"
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(random_url) as resp:
+                async with session.get(random_url, allow_redirects=True) as resp:
                     if resp.status != 200:
                         yield event.plain_result("请求随机图片失败，请稍后重试。")
                         return
+                    # 获取最终重定向后的页面内容
                     html = await resp.text()
         except Exception as e:
             yield event.plain_result(f"请求随机图片出错: {e}")
             return
 
+        # 提取页面中 id 为 "image" 的 img 标签的 src 属性
+        import re
         match = re.search(r'<img[^>]*id="image"[^>]*src="([^"]+)"', html)
         if match:
             image_url = match.group(1)
