@@ -4,29 +4,27 @@ import difflib
 import tempfile
 import aiohttp
 import openpyxl
+import re
 
 from astrbot.api.all import *
 
-@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.0.0", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
+@register("safebooru", "w33d", "从 safebooru 获取图片的插件", "1.1.0", "https://github.com/Last-emo-boy/astrbot_plugin_safebooru")
 class SafebooruPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         if config is None:
             config = {}
         super().__init__(context)
         self.config = config
-        self.limit = self.config.get("limit", 100)  # 默认 limit 值为 100
+        # 从配置中获取 limit 和 display_tags 参数
+        self.limit = self.config.get("limit", 100)
+        self.display_tags = self.config.get("display_tags", False)
         self.tag_mapping = self.load_tag_mapping("tag_mapping.xlsx")
-        self.usage_file = "usage_count.json"
+        base_dir = os.path.dirname(os.path.realpath(__file__))
+        self.usage_file = os.path.join(base_dir, "usage_count.json")
         self.usage_counts = self.load_usage_counts()
 
     def load_tag_mapping(self, filename: str) -> dict:
-        """
-        从 xlsx 文件中加载标签映射
-        期望第一列为真实 tag，第二列为中文描述（right_tag_cn）。
-        返回一个字典，键为中文标签，值为真实 tag。
-        """
         mapping = {}
-        # 使用当前文件所在的目录作为基准路径
         base_dir = os.path.dirname(os.path.realpath(__file__))
         filepath = os.path.join(base_dir, filename)
         if os.path.exists(filepath):
@@ -40,12 +38,7 @@ class SafebooruPlugin(Star):
             print(f"文件 {filepath} 不存在。")
         return mapping
 
-
     def load_usage_counts(self) -> dict:
-        """
-        从持久化记录文件中加载每个 tag 的使用次数，
-        若文件不存在则返回空字典。
-        """
         if os.path.exists(self.usage_file):
             try:
                 with open(self.usage_file, "r", encoding="utf-8") as f:
@@ -56,9 +49,6 @@ class SafebooruPlugin(Star):
             return {}
 
     def save_usage_counts(self):
-        """
-        将使用次数写入持久化文件。
-        """
         try:
             with open(self.usage_file, "w", encoding="utf-8") as f:
                 json.dump(self.usage_counts, f)
@@ -68,36 +58,23 @@ class SafebooruPlugin(Star):
     @command("safebooru")
     async def fetch_image(self, event: AstrMessageEvent, tag: str):
         """
-        根据用户输入的标签（允许中文）从 safebooru 获取图片。
-        
-        参数:
-            tag(string): 用户输入的图片标签（可能为中文）
-        
-        流程：
-        1. 使用 difflib 在加载的标签映射中找到最相似的中文标签，
-           得到对应真实的查询 tag。
-        2. 根据配置的 limit 构造 API 请求，获取 JSON 格式的图片列表。
-        3. 根据该 tag 的使用次数（持久化记录）选取图片，并更新计数。
-        4. 下载图片后发送给用户，再删除本地缓存文件。
+        根据用户输入的标签（支持中文和英文）从 safebooru 获取图片。
+        1. 首先尝试在映射中进行模糊匹配，如果匹配到则使用映射后的真实 tag，
+           否则直接使用用户输入的 tag。
+        2. 如果配置中 display_tags 为 True，则先发送返回JSON中的 "tags" 字段信息。
+        3. 如果 API 返回的图片列表为空，则报错提示。
         """
-        if not self.tag_mapping:
-            yield event.plain_result("未加载标签映射文件，请检查 tag_mapping.xlsx 是否存在。")
-            return
-
-        # 使用模糊匹配寻找最相似的中文标签
+        # 如果映射存在，则尝试匹配；如果没有匹配项，直接使用用户输入的tag
         candidates = list(self.tag_mapping.keys())
         matches = difflib.get_close_matches(tag, candidates, n=1, cutoff=0.1)
         if matches:
             best_match = matches[0]
             query_tag = self.tag_mapping[best_match]
         else:
-            yield event.plain_result("未找到匹配的标签。")
-            return
+            query_tag = tag
 
-        # 获取该 tag 的使用次数，决定返回图片的索引
+        # 获取该 tag 的使用次数，确保返回图片依次不同
         count = self.usage_counts.get(query_tag, 0)
-
-        # 构造 API 请求 URL
         api_url = (f"https://safebooru.org/index.php?page=dapi&s=post&q=index"
                    f"&tags={query_tag}&limit={self.limit}&json=1")
         try:
@@ -115,7 +92,6 @@ class SafebooruPlugin(Star):
             yield event.plain_result("未找到相关图片。")
             return
 
-        # 选取使用次数对应的图片（循环使用）
         index = count % len(posts)
         post = posts[index]
         file_url = post.get("file_url")
@@ -123,7 +99,11 @@ class SafebooruPlugin(Star):
             yield event.plain_result("未获取到图片链接。")
             return
 
-        # 下载图片到临时文件
+        # 当 display_tags 为True时，先发送图片的tags字段内容
+        if self.display_tags:
+            tags_field = post.get("tags", "")
+            yield event.plain_result("Tags: " + tags_field)
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(file_url) as img_resp:
@@ -139,15 +119,38 @@ class SafebooruPlugin(Star):
             yield event.plain_result(f"下载图片时出错: {e}")
             return
 
-        # 更新该 tag 的使用次数，并持久化保存
         self.usage_counts[query_tag] = count + 1
         self.save_usage_counts()
 
-        # 发送图片给用户
         yield event.image_result(temp_file_path)
 
-        # 删除临时文件
         try:
             os.remove(temp_file_path)
         except Exception as e:
             print("删除临时文件失败：", e)
+
+    @command("safebooru_random")
+    async def safebooru_random(self, event: AstrMessageEvent):
+        """
+        获取随机图片：
+        访问 https://safebooru.org/index.php?page=post&s=random，
+        解析返回页面中 id 为 "image" 的 img 元素的 src 属性，并发送该图片。
+        """
+        random_url = "https://safebooru.org/index.php?page=post&s=random"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(random_url) as resp:
+                    if resp.status != 200:
+                        yield event.plain_result("请求随机图片失败，请稍后重试。")
+                        return
+                    html = await resp.text()
+        except Exception as e:
+            yield event.plain_result(f"请求随机图片出错: {e}")
+            return
+
+        match = re.search(r'<img[^>]*id="image"[^>]*src="([^"]+)"', html)
+        if match:
+            image_url = match.group(1)
+            yield event.image_result(image_url)
+        else:
+            yield event.plain_result("未能在页面中找到随机图片。")
