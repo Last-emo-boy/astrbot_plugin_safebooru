@@ -134,10 +134,10 @@ class SafebooruPlugin(Star):
         """
         获取随机图片：
         1. 访问 https://safebooru.org/index.php?page=post&s=random，
-           设置 allow_redirects=True 以允许重定向到新的网址；
-        2. 获取重定向后的最终页面内容；
-        3. 解析页面中 id 为 "image" 的 img 标签的 src 属性；
-        4. 并发送该图片。
+        允许重定向获取最终页面内容；
+        2. 使用 XPath（/html/body/div[5]/div/div[2]/div[1]/div[2]/div[1]/img）解析页面，
+        提取目标 img 元素的 src 属性；
+        3. 并发送该图片。
         """
         random_url = "https://safebooru.org/index.php?page=post&s=random"
         try:
@@ -146,17 +146,19 @@ class SafebooruPlugin(Star):
                     if resp.status != 200:
                         yield event.plain_result("请求随机图片失败，请稍后重试。")
                         return
-                    # 获取最终重定向后的页面内容
                     html = await resp.text()
         except Exception as e:
             yield event.plain_result(f"请求随机图片出错: {e}")
             return
 
-        # 提取页面中 id 为 "image" 的 img 标签的 src 属性
-        import re
-        match = re.search(r'<img[^>]*id="image"[^>]*src="([^"]+)"', html)
-        if match:
-            image_url = match.group(1)
-            yield event.image_result(image_url)
-        else:
-            yield event.plain_result("未能在页面中找到随机图片。")
+        try:
+            import lxml.html
+            doc = lxml.html.fromstring(html)
+            elements = doc.xpath('/html/body/div[5]/div/div[2]/div[1]/div[2]/div[1]/img')
+            if elements:
+                image_url = elements[0].get("src")
+                yield event.image_result(image_url)
+            else:
+                yield event.plain_result("未能在页面中找到随机图片（通过XPath）。")
+        except Exception as e:
+            yield event.plain_result(f"解析随机图片时出错: {e}")
