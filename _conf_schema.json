@@ -1,14 +1,22 @@
 {
-    "limit": {
-        "description": "API返回图片的数量上限",
-        "type": "int",
-        "default": 100,
-        "hint": "建议设置在100以内"
+    "oss_access_key_id": {
+        "description": "阿里云OSS的AccessKey ID",
+        "type": "string"
     },
-    "display_tags": {
-        "description": "是否显示图片的tags字段",
-        "type": "bool",
-        "default": false,
-        "hint": "如果为true，则在发送图片前显示该图片的tags信息"
+    "oss_access_key_secret": {
+        "description": "阿里云OSS的AccessKey Secret",
+        "type": "string"
+    },
+    "oss_endpoint": {
+        "description": "阿里云OSS的Endpoint，如：oss-cn-shanghai.aliyuncs.com",
+        "type": "string"
+    },
+    "bucket_name": {
+        "description": "OSS桶名称",
+        "type": "string"
+    },
+    "internal_url_prefix": {
+        "description": "内网访问图片的URL前缀",
+        "type": "string"
     }
 }
